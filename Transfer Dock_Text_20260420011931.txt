@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Aura AI</title>
+<script src="https://js.puter.com/v2/"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: rgba(255,255,255,0.07);
+    --text: #f0f0f5;
+    --muted: #6b6b7a;
+    --accent: #a78bfa;
+    --user-bubble: linear-gradient(135deg, #6d28d9, #4f46e5);
+    --ai-bubble: #1e1e24;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; overflow:hidden; }
+
+  #header {
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    padding:52px 20px 14px;
+    background:linear-gradient(180deg,#0d0d0f 60%,transparent);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  #chat-title { font-family:'DM Serif Display',serif; font-size:17px; }
+  #chat-sub { font-size:11px; color:var(--muted); margin-top:1px; }
+  #header-right { display:flex; gap:10px; }
+  .hbtn {
+    width:38px; height:38px; border-radius:50%; border:1px solid var(--border);
+    background:var(--surface); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; color:var(--muted);
+  }
+  .hbtn:active { transform:scale(0.9); }
+
+  #messages {
+    position:fixed; top:0; left:0; right:0; bottom:90px;
+    overflow-y:auto; padding:120px 16px 20px;
+    display:flex; flex-direction:column; gap:16px;
+    scrollbar-width:none;
+  }
+  #messages::-webkit-scrollbar { display:none; }
+
+  #welcome { display:flex; flex-direction:column; align-items:center; padding-top:20px; gap:12px; transition:opacity .3s; }
+  .welcome-time { font-size:12px; color:var(--muted); letter-spacing:.5px; }
+  .welcome-title { font-family:'DM Serif Display',serif; font-size:50px; line-height:1; text-align:center; margin:4px 0 8px; }
+  .welcome-title span { color:var(--accent); font-style:italic; }
+
+  .cards-row { display:flex; gap:10px; width:100%; }
+  .card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:20px; padding:16px; flex:1;
+    font-size:13px; line-height:1.5; cursor:pointer; transition:all .2s;
+  }
+  .card:active { transform:scale(0.96); background:var(--surface2); }
+  .card-label { font-size:10px; color:var(--muted); margin-top:8px; text-transform:uppercase; letter-spacing:.5px; }
+  .card-big { font-size:14px; font-weight:600; line-height:1.4; }
+  .card-date { font-family:'DM Serif Display',serif; font-size:26px; font-weight:700; line-height:1.2; }
+  .card-date span { color:var(--accent); }
+
+  .msg-row { display:flex; flex-direction:column; max-width:85%; animation:popIn .3s cubic-bezier(.175,.885,.32,1.275); }
+  .msg-row.user { align-self:flex-end; align-items:flex-end; }
+  .msg-row.ai { align-self:flex-start; align-items:flex-start; }
+  @keyframes popIn { from{opacity:0;transform:scale(0.92) translateY(8px)} to{opacity:1;transform:none} }
+
+  .bubble { padding:12px 16px; border-radius:20px; font-size:14px; line-height:1.65; word-break:break-word; white-space:pre-wrap; }
+  .user .bubble { background:var(--user-bubble); color:#fff; border-bottom-right-radius:5px; }
+  .ai .bubble { background:var(--ai-bubble); border:1px solid var(--border); border-bottom-left-radius:5px; }
+  .ai-name { font-size:10px; color:var(--muted); margin-bottom:4px; padding-left:4px; }
+
+  .typing-dots { display:flex; gap:4px; padding:4px 2px; }
+  .typing-dots span { width:6px; height:6px; border-radius:50%; background:var(--muted); animation:bounce 1.2s infinite; }
+  .typing-dots span:nth-child(2){animation-delay:.2s} .typing-dots span:nth-child(3){animation-delay:.4s}
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+  #inputbar {
+    position:fixed; bottom:0; left:0; right:0;
+    padding:10px 12px 28px;
+    background:linear-gradient(0deg,#0d0d0f 70%,transparent);
+  }
+  #input-wrap {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:24px; padding:10px 12px 10px 16px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  #input {
+    background:transparent; border:none; outline:none;
+    color:var(--text); font-family:'DM Sans',sans-serif;
+    font-size:15px; resize:none; line-height:1.5; max-height:100px; overflow-y:auto;
+  }
+  #input::placeholder { color:var(--muted); }
+  #input-actions { display:flex; align-items:center; justify-content:space-between; }
+  #input-left { display:flex; gap:8px; }
+  .action-btn {
+    width:34px; height:34px; border-radius:50%; border:none;
+    background:transparent; color:var(--muted); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .action-btn:active { transform:scale(0.88); color:var(--accent); }
+  #send-btn {
+    width:36px; height:36px; border-radius:50%; border:none;
+    background:linear-gradient(135deg,#7c3aed,#4f46e5);
+    color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 14px rgba(124,58,237,.4);
+  }
+  #send-btn:active { transform:scale(0.88); }
+  #send-btn:disabled { opacity:.4; box-shadow:none; }
+
+  #overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:90; backdrop-filter:blur(20px); opacity:0; pointer-events:none; transition:opacity .3s; }
+  #overlay.show { opacity:1; pointer-events:all; }
+
+  .sheet {
+    position:fixed; bottom:0; left:0; right:0; z-index:100;
+    background:var(--surface); border-radius:28px 28px 0 0;
+    padding:20px; transform:translateY(100%);
+    transition:transform .4s cubic-bezier(.175,.885,.32,1.275);
+    max-height:85vh; overflow-y:auto;
+  }
+  .sheet.show { transform:translateY(0); }
+  .sheet-handle { width:36px; height:4px; background:var(--border); border-radius:4px; margin:0 auto 20px; }
+  .sheet-title { font-family:'DM Serif Display',serif; font-size:22px; margin-bottom:16px; }
+  .sheet-section { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin:16px 0 8px; }
+
+  .source-row { display:flex; gap:8px; margin-bottom:16px; }
+  .src-btn {
+    flex:1; padding:10px; border-radius:14px; border:1px solid var(--border);
+    background:transparent; color:var(--muted); font-family:'DM Sans',sans-serif;
+    font-size:13px; font-weight:600; cursor:pointer; transition:all .2s;
+  }
+  .src-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  #key-section { display:none; margin-bottom:12px; }
+  #key-section.show { display:block; }
+  .sheet-input {
+    width:100%; background:var(--surface2); border:1px solid var(--border);
+    color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px;
+    padding:12px 14px; border-radius:14px; outline:none; margin-bottom:8px;
+  }
+  .primary-btn {
+    width:100%; padding:12px; border-radius:14px; border:none;
+    background:linear-gradient(135deg,#7c3aed,#4f46e5); color:#fff;
+    font-family:'DM Sans',sans-serif; font-weight:700; font-size:14px; cursor:pointer;
+  }
+
+  .model-item {
+    display:flex; align-items:center; gap:12px; padding:12px 14px;
+    border-radius:16px; cursor:pointer; transition:all .2s; margin-bottom:4px;
+  }
+  .model-item:active { background:var(--surface2); }
+  .model-item.active { background:rgba(167,139,250,.12); border:1px solid rgba(167,139,250,.2); }
+  .model-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .model-name { font-size:14px; font-weight:600; }
+  .model-desc { font-size:11px; color:var(--muted); margin-top:1px; }
+  .model-check { color:var(--accent); opacity:0; }
+  .model-item.active .model-check { opacity:1; }
+
+  .setting-row { display:flex; justify-content:space-between; align-items:center; padding:14px 0; border-bottom:1px solid var(--border); }
+  .setting-label { font-size:14px; font-weight:500; }
+  .setting-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+  .clear-btn { padding:8px 16px; border-radius:12px; background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.2); color:#ef4444; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; cursor:pointer; }
+  .sys-msg { text-align:center; font-size:11px; color:var(--muted); padding:4px 0; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <div id="chat-title">New Chat</div>
+    <div id="chat-sub">Aura · <span id="active-label">Auto (Puter)</span></div>
+  </div>
+  <div id="header-right">
+    <div class="hbtn" onclick="openSheet('settings-sheet')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </div>
+    <div class="hbtn" onclick="openSheet('model-sheet')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    </div>
+  </div>
+</div>
+
+<div id="messages">
+  <div id="welcome">
+    <div class="welcome-time" id="time-label">Good Morning</div>
+    <div class="welcome-title">Hey,<br><span>what's up?</span></div>
+    <div class="cards-row">
+      <div class="card" onclick="quickSend('Give me a powerful motivational quote for today')">
+        <div class="card-big">I thrive in new environments 🌱</div>
+        <div class="card-label">Daily Boost</div>
+      </div>
+      <div class="card" onclick="quickSend('What should I focus on today? Give me a short daily overview.')">
+        <div class="card-date" id="day-card">Mon<br><span id="date-card">Apr 20</span></div>
+        <div class="card-label">Daily Overview</div>
+      </div>
+    </div>
+    <div class="cards-row">
+      <div class="card" onclick="quickSend('Recommend me a great anime or movie to watch tonight')">
+        <div class="card-big">🎬 What should I watch tonight?</div>
+        <div class="card-label">Media Pick</div>
+      </div>
+      <div class="card" onclick="quickSend('Tell me something fascinating I probably dont know')">
+        <div class="card-big">💡 Surprise me with a fact</div>
+        <div class="card-label">Curious Mind</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="inputbar">
+  <div id="input-wrap">
+    <textarea id="input" rows="1" placeholder="Chat with Aura..." oninput="autoResize(this)"></textarea>
+    <div id="input-actions">
+      <div id="input-left">
+        <button class="action-btn" onclick="openSheet('model-sheet')" title="Switch model">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+        </button>
+        <button class="action-btn" onclick="clearChat()" title="New chat">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+      <button id="send-btn" onclick="send()" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="overlay" onclick="closeSheets()"></div>
+
+<!-- MODEL SHEET -->
+<div class="sheet" id="model-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Choose Model</div>
+  <div class="sheet-section">Source</div>
+  <div class="source-row">
+    <button class="src-btn active" id="src-puter" onclick="setSource('puter')">⚡ Puter (Free)</button>
+    <button class="src-btn" id="src-openrouter" onclick="setSource('openrouter')">🔑 OpenRouter</button>
+  </div>
+  <div id="key-section">
+    <input class="sheet-input" id="or-key-input" type="password" placeholder="sk-or-v1-... paste your key" />
+    <button class="primary-btn" onclick="saveKey()">Save Key</button>
+  </div>
+  <div class="sheet-section">Model</div>
+  <div id="model-list"></div>
+</div>
+
+<!-- SETTINGS SHEET -->
+<div class="sheet" id="settings-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Settings</div>
+  <div class="setting-row">
+    <div><div class="setting-label">System Prompt</div><div class="setting-sub">Give Aura a personality</div></div>
+  </div>
+  <textarea class="sheet-input" id="sys-prompt" rows="3" placeholder="e.g. You are a helpful anime expert who speaks casually..." style="margin-top:12px;resize:none;"></textarea>
+  <div class="setting-row">
+    <div><div class="setting-label">Clear Chat</div><div class="setting-sub">Start a fresh conversation</div></div>
+    <button class="clear-btn" onclick="clearChat();closeSheets();">Clear</button>
+  </div>
+  <button class="primary-btn" style="margin-top:16px;" onclick="saveSysPrompt()">Save Settings</button>
+</div>
+
+<script>
+  let messages = [];
+  let source = 'puter';
+  let orKey = localStorage.getItem('aura_or_key') || '';
+  let sysPrompt = localStorage.getItem('aura_sys') || '';
+  let activeModel = localStorage.getItem('aura_model') || 'auto';
+  let isLoading = false;
+
+  const PUTER_MODELS = [
+    { id:'auto', name:'Auto', desc:'Best available · Puter picks', color:'#a78bfa' },
+    { id:'gpt-4o-mini', name:'GPT-4o Mini', desc:'Fast & efficient · OpenAI', color:'#60a5fa' },
+    { id:'gpt-4o', name:'GPT-4o', desc:'Most capable · OpenAI', color:'#34d399' },
+    { id:'claude-sonnet-4-5', name:'Claude Sonnet', desc:'Smart reasoning · Anthropic', color:'#f472b6' },
+    { id:'o1-mini', name:'o1 Mini', desc:'Deep reasoning · OpenAI', color:'#fb923c' },
+  ];
+
+  const OR_MODELS = [
+    { id:'deepseek/deepseek-r1:free', name:'DeepSeek R1', desc:'Free · Best reasoning', color:'#60a5fa' },
+    { id:'google/gemini-2.0-flash-lite-preview-02-05:free', name:'Gemini 2.0 Flash', desc:'Free · Fast & smart', color:'#34d399' },
+    { id:'meta-llama/llama-3.3-70b-instruct:free', name:'Llama 3.3 70B', desc:'Free · Meta', color:'#fb923c' },
+    { id:'mistralai/mistral-7b-instruct:free', name:'Mistral 7B', desc:'Free · Lightweight', color:'#a78bfa' },
+    { id:'qwen/qwen2.5-72b-instruct:free', name:'Qwen 2.5 72B', desc:'Free · Alibaba', color:'#f472b6' },
+  ];
+
+  window.addEventListener('DOMContentLoaded', () => {
+    updateGreeting(); updateDateCard(); renderModelList();
+    const inp = document.getElementById('input');
+    inp.addEventListener('input', () => { document.getElementById('send-btn').disabled = !inp.value.trim(); });
+    inp.addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} });
+    if(orKey) document.getElementById('or-key-input').value = orKey;
+    if(sysPrompt) document.getElementById('sys-prompt').value = sysPrompt;
+    updateLabel();
+  });
+
+  function updateGreeting() {
+    const h = new Date().getHours();
+    const el = document.getElementById('time-label');
+    el.textContent = h<12?'🌤 Good Morning':h<17?'☀️ Good Afternoon':'🌙 Good Evening';
+  }
+
+  function updateDateCard() {
+    const d = new Date();
+    const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const dc = document.getElementById('day-card');
+    if(dc) { dc.childNodes[0].textContent = days[d.getDay()]; }
+    const dateEl = document.getElementById('date-card');
+    if(dateEl) dateEl.textContent = months[d.getMonth()]+' '+d.getDate();
+  }
+
+  function renderModelList() {
+    const models = source==='puter'?PUTER_MODELS:OR_MODELS;
+    document.getElementById('model-list').innerHTML = models.map(m=>`
+      <div class="model-item ${activeModel===m.id?'active':''}" onclick="selectModel('${m.id}')">
+        <div class="model-dot" style="background:${m.color}"></div>
+        <div style="flex:1"><div class="model-name">${m.name}</div><div class="model-desc">${m.desc}</div></div>
+        <svg class="model-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>`).join('');
+  }
+
+  function setSource(s) {
+    source = s;
+    document.getElementById('src-puter').classList.toggle('active',s==='puter');
+    document.getElementById('src-openrouter').classList.toggle('active',s==='openrouter');
+    document.getElementById('key-section').classList.toggle('show',s==='openrouter');
+    activeModel = s==='puter'?'auto':OR_MODELS[0].id;
+    renderModelList(); updateLabel();
+  }
+
+  function selectModel(id) {
+    activeModel = id;
+    localStorage.setItem('aura_model', id);
+    renderModelList(); updateLabel(); closeSheets();
+  }
+
+  function saveKey() {
+    orKey = document.getElementById('or-key-input').value.trim();
+    localStorage.setItem('aura_or_key', orKey);
+    closeSheets(); addSysMsg('✅ OpenRouter key saved');
+  }
+
+  function updateLabel() {
+    const models = source==='puter'?PUTER_MODELS:OR_MODELS;
+    const m = models.find(x=>x.id===activeModel)||models[0];
+    document.getElementById('active-label').textContent = `${m.name} (${source==='puter'?'Puter':'OpenRouter'})`;
+  }
+
+  function saveSysPrompt() {
+    sysPrompt = document.getElementById('sys-prompt').value;
+    localStorage.setItem('aura_sys', sysPrompt);
+    closeSheets(); addSysMsg('✅ Settings saved');
+  }
+
+  async function send() {
+    const inp = document.getElementById('input');
+    const text = inp.value.trim();
+    if(!text||isLoading) return;
+    inp.value=''; autoResize(inp);
+    document.getElementById('send-btn').disabled = true;
+    hideWelcome();
+    addBubble(text,'user');
+    messages.push({role:'user',content:text});
+    await getResponse();
+  }
+
+  async function quickSend(text) {
+    hideWelcome();
+    addBubble(text,'user');
+    messages.push({role:'user',content:text});
+    await getResponse();
+  }
+
+  async function getResponse() {
+    isLoading = true;
+    const typing = addTyping();
+    try {
+      const full = sysPrompt?[{role:'system',content:sysPrompt},...messages]:messages;
+      let reply='';
+      if(source==='puter') {
+        const opts = activeModel!=='auto'?{model:activeModel}:{};
+        const res = await puter.ai.chat(full, opts);
+        reply = res?.message?.content?.[0]?.text || res?.toString() || 'No response';
+      } else {
+        if(!orKey){ reply='⚠️ No OpenRouter key. Tap model icon to add one.'; }
+        else {
+          const res = await fetch('https://openrouter.ai/api/v1/chat/completions',{
+            method:'POST',
+            headers:{'Authorization':`Bearer ${orKey}`,'Content-Type':'application/json'},
+            body:JSON.stringify({model:activeModel,messages:full})
+          });
+          const d = await res.json();
+          reply = d.error?('⚠️ '+(d.error.message||'API Error')):d.choices?.[0]?.message?.content||'No response';
+        }
+      }
+      typing.remove();
+      addBubble(reply,'ai');
+      messages.push({role:'assistant',content:reply});
+    } catch(e) {
+      typing.remove();
+      addBubble('⚠️ '+e.message,'ai');
+    }
+    isLoading=false;
+    document.getElementById('send-btn').disabled=false;
+  }
+
+  function addBubble(text, role) {
+    const wrap = document.createElement('div');
+    wrap.className = `msg-row ${role}`;
+    if(role==='ai'){const n=document.createElement('div');n.className='ai-name';n.textContent='Aura';wrap.appendChild(n);}
+    const b = document.createElement('div');
+    b.className='bubble'; b.textContent=text;
+    wrap.appendChild(b);
+    document.getElementById('messages').appendChild(wrap);
+    wrap.scrollIntoView({behavior:'smooth',block:'end'});
+    return wrap;
+  }
+
+  function addTyping() {
+    const wrap = document.createElement('div');
+    wrap.className='msg-row ai';
+    const n=document.createElement('div');n.className='ai-name';n.textContent='Aura';
+    const b=document.createElement('div');b.className='bubble';
+    b.innerHTML='<div class="typing-dots"><span></span><span></span><span></span></div>';
+    wrap.appendChild(n);wrap.appendChild(b);
+    document.getElementById('messages').appendChild(wrap);
+    wrap.scrollIntoView({behavior:'smooth',block:'end'});
+    return wrap;
+  }
+
+  function addSysMsg(text) {
+    const d=document.createElement('div');
+    d.className='sys-msg';d.textContent=text;
+    document.getElementById('messages').appendChild(d);
+  }
+
+  function hideWelcome() {
+    const w=document.getElementById('welcome');
+    if(w){w.style.opacity='0';setTimeout(()=>w.remove(),300);}
+  }
+
+  function clearChat() {
+    messages=[];
+    document.getElementById('messages').innerHTML=`
+    <div id="welcome">
+      <div class="welcome-time" id="time-label"></div>
+      <div class="welcome-title">Hey,<br><span>what's up?</span></div>
+      <div class="cards-row">
+        <div class="card" onclick="quickSend('Give me a powerful motivational quote for today')"><div class="card-big">I thrive in new environments 🌱</div><div class="card-label">Daily Boost</div></div>
+        <div class="card" onclick="quickSend('What should I focus on today?')"><div class="card-date" id="day-card">Mon<br><span id="date-card">Apr 20</span></div><div class="card-label">Daily Overview</div></div>
+      </div>
+      <div class="cards-row">
+        <div class="card" onclick="quickSend('Recommend me a great anime or movie to watch tonight')"><div class="card-big">🎬 What to watch tonight?</div><div class="card-label">Media Pick</div></div>
+        <div class="card" onclick="quickSend('Tell me something fascinating I probably dont know')"><div class="card-big">💡 Surprise me</div><div class="card-label">Curious Mind</div></div>
+      </div>
+    </div>`;
+    updateGreeting(); updateDateCard();
+  }
+
+  function openSheet(id) {
+    document.getElementById(id).classList.add('show');
+    document.getElementById('overlay').classList.add('show');
+  }
+
+  function closeSheets() {
+    document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('show'));
+    document.getElementById('overlay').classList.remove('show');
+  }
+
+  function autoResize(el) {
+    el.style.height='auto';
+    el.style.height=Math.min(el.scrollHeight,100)+'px';
+  }
+</script>
+</body>
+</html>
